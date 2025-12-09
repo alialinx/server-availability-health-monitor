@@ -7,7 +7,7 @@ from starlette.middleware.cors import CORSMiddleware
 import secrets
 from app.settings.config import SWAGGER_USER, SWAGGER_PASS
 
-from .routers import servers, contacts, auth, users
+from .routers import servers, contacts, auth
 
 
 # ---------------- APP CONFIG ----------------
@@ -62,5 +62,4 @@ app.add_middleware(
 # ---------------- ROUTERS ----------------
 app.include_router(servers.router)
 app.include_router(contacts.router)
-app.include_router(users.router)
 app.include_router(auth.router)
