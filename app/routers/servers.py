@@ -22,7 +22,7 @@ def get_server(server_id: str, db= Depends(get_db),current = Depends(get_current
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid server_id")
 
-    user_id = current.get("_id")
+    user_id = current["user"]["_id"]
 
     result = db.servers.find_one({"_id": server_oid, "user_id": user_id})
 
@@ -42,19 +42,19 @@ def get_all_servers(db= Depends(get_db),current=Depends(get_current_user), req_i
     if not current.get("success"):
         return {"success": False, "message": current.get("error", "unauthorized")}
 
-    user_id = current.get("_id")
+    user_id = current["user"]["_id"]
 
     servers = list(db.servers.find({"user_id": user_id}))
 
     if not servers:
-        raise HTTPException(status_code=404, detail="Servers not found")
+        return {"success": True, "message": "servers not found", "data": []}
 
     system_log(db=db, log_type="get_all_server", user_id=user_id, payload={"ip": req_info["ip"], "user_agent": req_info["user_agent"], "data": servers})
 
     for s in servers:
         s["_id"] = str(s["_id"])
 
-    return {"success": True, "message": "get all servers", "data": servers}
+    return {"success": True, "message": "get all data success", "data": servers}
 
 
 @router.post("/servers", summary="Add Server")
@@ -63,12 +63,23 @@ def add_server(info: AddServer, db=Depends(get_db),current = Depends(get_current
     if not current.get("success"):
         return {"success": False, "message": current.get("error", "unauthorized")}
 
-    user_id = current.get("_id")
+    user_id = current["user"]["_id"]
 
     exists = db.servers.find_one({"host": info.host, "user_id": user_id})
 
     if exists:
         raise HTTPException(status_code=400, detail="Server already exists")
+
+
+    contacts_emails = []
+
+
+
+    for contact_id in info.contacts:
+        contact =  db.contacts.find_one({"_id":ObjectId(contact_id), "user_id": user_id })
+
+        if contact:
+            contacts_emails.append(contact["email"])
 
 
     payload = {
@@ -81,6 +92,7 @@ def add_server(info: AddServer, db=Depends(get_db),current = Depends(get_current
         "retry_count": info.retry_count,
         "alert_interval":info.alert_interval,
         "description": info.description,
+        "contacts": contacts_emails,
         "created_at": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
         "updated_at": datetime.now().strftime("%d.%m.%Y %H:%M:%S"),
         "is_active": info.is_active,
@@ -109,13 +121,28 @@ def update_server(server_id:str, payload:UpdateServer , db = Depends(get_db), cu
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid server_id")
 
-    user_id = current.get("_id")
+    user_id = current["user"]["_id"]
 
     result = db.servers.find_one({"_id": server_oid, "user_id": user_id})
     if not result:
         raise HTTPException(status_code=404, detail="Server not found")
 
     update_data = payload.model_dump(exclude_unset=True)
+
+    if "contacts" in update_data:
+        contacts_emails = []
+        for contact_id in update_data["contacts"]:
+            contact = db.contacts.find_one({"_id": ObjectId(contact_id), "user_id": user_id})
+            if contact:
+                contacts_emails.append(contact.get("email"))
+        update_data["contacts"] = contacts_emails
+
+    if "host" in update_data:
+        exists = db.servers.find_one({"host": update_data["host"], "user_id": user_id, "_id":{"$ne":server_oid}})
+
+        if exists:
+            raise HTTPException(status_code=400, detail="Server already exists")
+
     update_data = {k: v for k, v in update_data.items() if v not in ("", None)}
     update_data["updated_at"] = datetime.now().strftime("%d.%m.%Y %H:%M:%S")
 
@@ -138,7 +165,7 @@ def delete_server(server_id:str, db = Depends(get_db), current = Depends(get_cur
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid server_id")
 
-    user_id = current.get("_id")
+    user_id = current["user"]["_id"]
 
     result = db.servers.find_one({"_id": server_oid, "user_id": user_id})
     if not result:
