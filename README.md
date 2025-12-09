@@ -117,6 +117,8 @@ SENDER_NAME=
 
 ---
 
+````
+
 ## 3️⃣ Start the FastAPI Server
 
 Run the API using Uvicorn:
