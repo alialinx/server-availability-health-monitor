@@ -29,7 +29,6 @@ def create_access_token(data: dict):
 
     token = jwt.encode(to_encode,SECRET_KEY,algorithm=ALGORITHM)
 
-    print(token)
     return token,expire
 
 

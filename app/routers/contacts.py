@@ -45,8 +45,6 @@ def get_all_contacts(db= Depends(get_db), current= Depends(get_current_user), re
 
     user_id = current["user"]["_id"]
 
-    print(user_id)
-
     if not current.get("success"):
         return {"success": False, "message": current.get("error", "unauthorized")}
 
